@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scoreboard_Speak</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      display: flex;
+      height: 85vh;
+      width: 100%;
+    }
+
+    .score-wrapper {
+      position: relative;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24vw;
+      font-family: 'Sports Jersey', sans-serif;
+      color: white;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .left {
+      background-color: blue;
+    }
+
+    .right {
+      background-color: red;
+    }
+
+    .server-indicator {
+      position: absolute;
+      font-size: 4vw;
+      top: 1vw;
+      left: 1vw;
+      display: none;
+    }
+
+    .right .server-indicator {
+      left: auto;
+      right: 1vw;
+    }
+
+    .reset-button-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 15vh;
+      background-color: black;
+    }
+
+    .reset-button {
+      font-size: 5vw;
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      background-color: white;
+      color: black;
+      font-family: 'Sports Jersey', sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="score-wrapper left" onmousedown="startTouch(event, 'left')" ontouchstart="startTouch(event, 'left')">
+      <div class="server-indicator" id="left-indicator">🏐</div>
+      <div id="left-score">0</div>
+    </div>
+    <div class="score-wrapper right" onmousedown="startTouch(event, 'right')" ontouchstart="startTouch(event, 'right')">
+      <div class="server-indicator" id="right-indicator">🏐</div>
+      <div id="right-score">0</div>
+    </div>
+  </div>
+
+  <div class="reset-button-container">
+    <button class="reset-button" onclick="resetScores()">Reset</button>
+  </div>
+
+  <script>
+    let leftScore = 0;
+    let rightScore = 0;
+    let startY = 0;
+    let swipeHandled = false;
+    let server = 'left'; // 'left' or 'right'
+
+    function speakScore(order = 'default') {
+      let message = '';
+      if (order === 'default') {
+        message = `${leftScore}  ${rightScore}`;
+      } else if (order === 'reverse') {
+        message = `${rightScore}  ${leftScore}`;
+      }
+      const utterance = new SpeechSynthesisUtterance(message);
+      utterance.rate = 1.1;
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function updateServerIndicator() {
+      document.getElementById('left-indicator').style.display = server === 'left' ? 'block' : 'none';
+      document.getElementById('right-indicator').style.display = server === 'right' ? 'block' : 'none';
+    }
+
+    function startTouch(event, side) {
+      event.preventDefault();
+      startY = event.touches ? event.touches[0].clientY : event.clientY;
+      swipeHandled = false;
+      document.querySelector(`.${side}`).addEventListener('touchend', (e) => handleSwipe(e, side), { once: true });
+      document.querySelector(`.${side}`).addEventListener('mouseup', (e) => handleSwipe(e, side), { once: true });
+    }
+
+    function handleSwipe(event, side) {
+      if (swipeHandled) return;
+      let currentY = event.changedTouches ? event.changedTouches[0].clientY : event.clientY;
+      let deltaY = startY - currentY;
+      if (deltaY > 50) {
+        increment(side);
+      } else if (deltaY < -50) {
+        decrement(side);
+      }
+      swipeHandled = true;
+    }
+
+    function increment(side) {
+      const previousServer = server;
+      const previousOrder = previousServer === 'left' ? 'default' : 'reverse';
+
+      if (side === 'left') {
+        leftScore++;
+        document.getElementById('left-score').textContent = leftScore;
+      } else {
+        rightScore++;
+        document.getElementById('right-score').textContent = rightScore;
+      }
+
+      // always speak in previous server's order first
+      speakScore(previousOrder);
+
+      if (side !== previousServer) {
+        // switch server and speak again using new server's order
+        server = side;
+        const newOrder = server === 'left' ? 'default' : 'reverse';
+        setTimeout(() => {
+          speakScore(newOrder);
+        }, 800);
+      }
+
+      updateServerIndicator();
+    }
+
+    function decrement(side) {
+      if (side === 'left' && leftScore > 0) {
+        leftScore--;
+        document.getElementById('left-score').textContent = leftScore;
+      } else if (side === 'right' && rightScore > 0) {
+        rightScore--;
+        document.getElementById('right-score').textContent = rightScore;
+      }
+      speakScore(server === 'left' ? 'default' : 'reverse');
+      updateServerIndicator();
+    }
+
+    function resetScores() {
+      leftScore = 0;
+      rightScore = 0;
+      server = 'left';
+      document.getElementById('left-score').textContent = leftScore;
+      document.getElementById('right-score').textContent = rightScore;
+      speakScore('default');
+      updateServerIndicator();
+    }
+
+    // Initialize on load
+    updateServerIndicator();
+  </script>
+</body>
+</html>
